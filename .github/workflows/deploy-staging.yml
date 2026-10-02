@@ -60,5 +60,6 @@ jobs:
             -P "$SFTP_PORT" \
             -b - "$SFTP_USERNAME@$SFTP_HOST" <<EOF
           cd "$SFTP_REMOTE_PATH"
+          -mkdir assets
           put -r dist/* .
           EOF
