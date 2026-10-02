@@ -1,0 +1,64 @@
+name: Deploy staging
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build staging site
+        run: npm run build:staging
+
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install --yes sshpass
+
+      - name: Deploy over SFTP
+        env:
+          SFTP_HOST: ${{ secrets.STAGING_SFTP_HOST }}
+          SFTP_PORT: ${{ secrets.STAGING_SFTP_PORT || '22' }}
+          SFTP_USERNAME: ${{ secrets.STAGING_SFTP_USERNAME }}
+          SFTP_PASSWORD: ${{ secrets.STAGING_SFTP_PASSWORD }}
+          SFTP_REMOTE_PATH: ${{ secrets.STAGING_SFTP_REMOTE_PATH }}
+        run: |
+          : "${SFTP_HOST:?Set the STAGING_SFTP_HOST secret}"
+          : "${SFTP_USERNAME:?Set the STAGING_SFTP_USERNAME secret}"
+          : "${SFTP_PASSWORD:?Set the STAGING_SFTP_PASSWORD secret}"
+          : "${SFTP_REMOTE_PATH:?Set the STAGING_SFTP_REMOTE_PATH secret}"
+          [[ "$SFTP_PORT" =~ ^[0-9]+$ ]] || { echo "SFTP port must be numeric" >&2; exit 1; }
+
+          SSHPASS="$SFTP_PASSWORD" sshpass -e sftp \
+            -oBatchMode=no \
+            -oPreferredAuthentications=password \
+            -oPubkeyAuthentication=no \
+            -oStrictHostKeyChecking=no \
+            -oUserKnownHostsFile=/dev/null \
+            -oGlobalKnownHostsFile=/dev/null \
+            -P "$SFTP_PORT" \
+            -b - "$SFTP_USERNAME@$SFTP_HOST" <<EOF
+          cd "$SFTP_REMOTE_PATH"
+          put -r dist/* .
+          EOF
