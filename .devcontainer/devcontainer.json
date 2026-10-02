@@ -1,0 +1,28 @@
+{
+  "name": "Vue + TypeScript + Playwright",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+
+  "forwardPorts": [5173],
+
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite",
+      "onAutoForward": "openBrowser"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Vue.volar",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-playwright.playwright"
+      ]
+    }
+  },
+
+  "postCreateCommand": "npm install && npx playwright install --with-deps chromium",
+
+  "remoteUser": "node"
+}
